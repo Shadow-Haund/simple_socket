@@ -22,8 +22,8 @@ namespace sockets
 
 enum class SocketType
 {
-    TYPE_STREAM = SOCK_STREAM,
-    TYPE_DGRAM = SOCK_DGRAM
+    TYPE_STREAM = SOCK_STREAM,  // Для TCP
+    TYPE_DGRAM = SOCK_DGRAM     // Для UDP
 };
 
 enum class SocketErrors
@@ -63,7 +63,7 @@ class Socket
 
   protected:
     int sockfd_;
-    sockaddr_in address_;
+    sockaddr_in address_;   // Самое интересное - это port и addres
     SocketType socket_type_;
     timeout_ms timeout_ = 50;
 };
