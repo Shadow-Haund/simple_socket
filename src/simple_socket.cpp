@@ -65,18 +65,19 @@ int Socket::set_address(const std::string &ip_address)
 {
     if (ip_address.empty())
     {
-        address_.sin_addr.s_addr = htonl(INADDR_ANY);
+        // Если ip_address пуст, то адрес будет 0.0.0.0 (все сетевые устройства)
+        address_.sin_addr.s_addr = htonl(INADDR_ANY);   //преобразует 32-битное число из порядка байт хоста в сетевой порядок
         return 0;
     }
-    if (!inet_pton(AF_INET, ip_address.c_str(), &address_.sin_addr))
-    {
+    if (!inet_pton(AF_INET, ip_address.c_str(), &address_.sin_addr))    // преобразует IP-адрес из текстового формата в двоичный (сетевой порядок)
+    {// &address_.sin_addr — указатель на поле для записи адреса
         return static_cast<int>(SocketErrors::INCORRECT_ADDRESS);
     }
     return 0;
 }
 
 int Socket::socket_init()
-{
+{          //создание сокета, тип сокета,                   протокол(если 0, то выбирается автоматически)
     sockfd_ = socket(AF_INET, static_cast<int>(socket_type_), 0);
     if (sockfd_ < 0)
     {
@@ -84,6 +85,7 @@ int Socket::socket_init()
     }
 
     int optval = 1;
+// настройка сокета, адрес, уровень (на уровне сокета), переиспользование адреса, включить,
     if (setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, (char *)&optval,
                    sizeof(optval)) < 0)
     {
@@ -105,14 +107,14 @@ void Socket::socket_close()
 
 int Socket::wait_for_receive(const int sockfd)
 {
-    fd_set set;
-    FD_ZERO(&set);
-    FD_SET(sockfd, &set);
+    fd_set set; // набор с описаниями десрипторов и сокетов
+    FD_ZERO(&set);  // очистка набора
+    FD_SET(sockfd, &set);   // добавление нужного наюора
 
     if (timeout_ == 0)
-    {
+    {//Проверяет, готов ли дескриптор для чтения. Проверяет все дескрипторы от 0 до указанного (нужно +1)
         return select(sockfd + 1, &set, NULL, NULL, NULL);
-    }
+    }//Дескрипторы для мониторинга на чтение, на запись, на исключения, таймаут (жду бесконечно, пока не появятся данные) 
 
     timeval tv;
     tv.tv_sec = timeout_ / 1000;
@@ -131,7 +133,7 @@ UDPClient::UDPClient(const std::string &ip_address, uint16_t port)
 int UDPClient::send_mes(const char *mes, const int mes_size)
 {
     if (sendto(sockfd_, mes, mes_size, 0,
-               reinterpret_cast<sockaddr *>(&address_), sizeof(address_)) < 0)
+               reinterpret_cast<sockaddr *>(&address_), sizeof(address_)) < 0) // Приведение адреса к общему формату
         return static_cast<int>(SocketErrors::SEND_ERROR);
     return 0;
 }
@@ -165,7 +167,7 @@ int UDPServer::receive(char *recv_buf, const int recv_buf_size)
     }
 
     return recvfrom(sockfd_, recv_buf, recv_buf_size, 0,
-                    reinterpret_cast<sockaddr *>(&client_), &client_size_);
+                    reinterpret_cast<sockaddr *>(&client_), &client_size_); // Метод для UDP
 }
 
 TCPSocket::TCPSocket(const std::string &ip_address, uint16_t port)
@@ -187,7 +189,7 @@ int TCPSocket::receive(char *recv_buf, const int recv_buf_size)
         return static_cast<int>(SocketErrors::RECEIVE_ERROR);
     }
 
-    int res = recv(dest_sock_, recv_buf, recv_buf_size, 0);
+    int res = recv(dest_sock_, recv_buf, recv_buf_size, 0); // Метод для TCP
 
     if (res <= 0)
     {
@@ -207,7 +209,7 @@ int TCPSocket::send_mes(const char *mes, const int mes_size)
 #ifdef _WIN32
     int flags = 0;
 #else
-    int flags = MSG_NOSIGNAL;
+    int flags = MSG_NOSIGNAL;   // При попытке записи в закрытый сокет не будет остановки программы
 #endif
 
     if (send(dest_sock_, mes, mes_size, flags) < 0)
@@ -255,9 +257,9 @@ TCPServer::TCPServer(const std::string &ip_address, uint16_t port)
 #ifdef _WIN32
     u_long on = 1;
     ioctlsocket(sockfd_, FIONBIO, &on);
-#else
-    fcntl(sockfd_, F_SETFL, O_NONBLOCK);
-#endif
+#else   // Упрравление файловыми дескрипторами
+    fcntl(sockfd_, F_SETFL, O_NONBLOCK);// переводит сокет в неблокирующий режим
+#endif  // F_SETFL - установить флаг  O_NONBLOCK - неблокирующим
 }
 
 TCPServer::~TCPServer()
@@ -268,10 +270,10 @@ TCPServer::~TCPServer()
 int TCPServer::socket_bind()
 {
     if (bind(sockfd_, reinterpret_cast<sockaddr *>(&address_),
-             sizeof(address_)) < 0)
+             sizeof(address_)) < 0) // Дает сокету (sockfd_) локальный адресс (&address_) длиной sizeof(address_)
         return static_cast<int>(SocketErrors::BIND_ERROR);
 
-    if (listen(sockfd_, 5) < 0)
+    if (listen(sockfd_, 5) < 0) // В редим ожидания подключений (до 5 за раз)
         return static_cast<int>(SocketErrors::LISTEN_ERROR);
 
     return 0;
@@ -287,7 +289,7 @@ int TCPServer::make_connection()
     }
 
     dest_sock_ =
-        accept(sockfd_, reinterpret_cast<sockaddr *>(&client_), &client_size_);
+        accept(sockfd_, reinterpret_cast<sockaddr *>(&client_), &client_size_); // Создает сокет для клиента
 
     if (dest_sock_ < 0)
         return static_cast<int>(SocketErrors::ACCEPT_ERROR);
