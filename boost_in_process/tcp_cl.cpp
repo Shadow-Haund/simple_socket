@@ -42,7 +42,8 @@ class client{
             socket_.async_read_some(boost::asio::buffer(buff_), [this](sys_e e, size_t buff_s){
                 if (e)
                     std::cerr << e.message() << std::endl;
-                else if(buff_s == 0){
+                else if (buff_s == 0){
+                    std::cout << "Connection is clossed" << std::endl;
                     return;
                 }
                 else{
