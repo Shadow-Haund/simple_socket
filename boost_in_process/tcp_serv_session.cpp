@@ -62,9 +62,9 @@ class session: public std::enable_shared_from_this<session>{
         std::array<char, 1024> buff_;
 };
 
-class server{
+class tcp_server{
     public:
-        server(io_c &io, int serv_port)
+        tcp_server(io_c &io, int serv_port)
         : io_context_(io), server_end_(tcp::v4(), serv_port), acceptor_(io, server_end_) {}
 
         void start(){
@@ -93,7 +93,7 @@ int main(int argc, char* argv[]){
     io_c io_context;
     int serv_port = 15000;
     if (argc == 2) serv_port = std::stoi(argv[1]);
-    server serv(io_context, serv_port);
+    tcp_server serv(io_context, serv_port);
     serv.start();
     io_context.run();
     return 0;

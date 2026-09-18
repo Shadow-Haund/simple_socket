@@ -8,9 +8,9 @@ using tcp = boost::asio::ip::tcp;
 using io_c = boost::asio::io_context;
 using sys_e = boost::system::error_code;
 
-class client{
+class tcp_client{
     public:
-        client(io_c &io, int use_hz, int hz, std::string serv_ip, int serv_port, std::string msg)
+        tcp_client(io_c &io, int use_hz, int hz, std::string serv_ip, int serv_port, std::string msg)
         : io_context_(io), timer_(std::make_shared<boost::asio::steady_timer>(io)), server_end_(boost::asio::ip::make_address(serv_ip), serv_port),
         msg_(msg), hz_(hz), use_hz_(use_hz), socket_(io) {}
 
@@ -83,7 +83,7 @@ int main(int argc, char* argv[]){
     io_c io_context;
     std::shared_ptr<params> param_val = std::make_shared<params>();
     parse_args(argc, argv, param_val, false);
-    client cl(io_context, param_val->use_hz, param_val->hz, param_val->serv_ip, param_val->serv_port, param_val->msg);
+    tcp_client cl(io_context, param_val->use_hz, param_val->hz, param_val->serv_ip, param_val->serv_port, param_val->msg);
     cl.start();
     io_context.run();
     return 0;
