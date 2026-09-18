@@ -65,9 +65,10 @@ class server{
         std::array<char, 1024> buff_;
 };
 
-int main(){
+int main(int argc, char* argv[]){
     io_c io_context;
     int serv_port = 15000;
+    if (argc == 2) serv_port = std::stoi(argv[1]);
     server serv(io_context, serv_port);
     serv.start();
     io_context.run();

@@ -1,5 +1,8 @@
 #include <iostream>
 #include <boost/asio.hpp>
+#include <string>
+#include "../include/arg_parse.h"
+#include "../include/timer.h"
 
 using udp = boost::asio::ip::udp;
 using io_c = boost::asio::io_context;
@@ -7,80 +10,50 @@ using sys_e = boost::system::error_code;
 
 class client{
     public:
-        client(io_c &io, std::string serv_ip, int serv_port)
-        : io_context_(io),timer_(io), server_end_(boost::asio::ip::make_address(serv_ip), serv_port),
-        client_end_(udp::v4(), serv_port+1), socket_(io, client_end_) {}
+        client(io_c &io, int use_hz, int hz, std::string serv_ip, int serv_port, std::string msg)
+        : io_context_(io), timer_(std::make_shared<boost::asio::steady_timer>(io)), server_end_(boost::asio::ip::make_address(serv_ip), serv_port),
+        client_end_(udp::v4(), serv_port+1), socket_(io, client_end_), msg_(msg), hz_(hz), use_hz_(use_hz) {}
 
         void start(){
-            watchdog_timer();
-            send_to_serv(); 
+            recv_from_serv();
+            hz_timer(timer_, hz_, [this](){send_to_serv();});
+            
+        }
+
+        void set_msg(std::string msg_new){
+            msg_ = msg_new;
+        }
+        
+        std::string get_msg(){
+            return msg_;
         }
 
     private:
 
         void send_to_serv(){
-            i_o = 0;
             socket_.async_send_to(boost::asio::buffer(msg_), server_end_, [this](sys_e e, size_t buff_s){
                 if (e){
                     std::cerr << e.message() << std::endl;
-                    if (count_send < count_max){
-                        count_send++; 
-                        std::cout << "Trying to receive msg again, counter = " << count_send << " / " << count_max << std::endl;
-                        send_to_serv();
-                    }
-                    else {
-                        std::cerr << "Socket malfunction" << std::endl;
-                        return;
-                    }
+                }
+                else if (use_hz_){
+                    std::cout << "Sending using timer: " << msg_ << std::endl;
+                    hz_timer(timer_, hz_, [this](){send_to_serv();});
                 }
                 else{
-                    std::cout << "Sending: " << msg_ << std::endl;
-                    watchdog_timer();
-                    recv_from_serv();
+                    std::cout << "Sending no timer: " << msg_ << std::endl;
+                    send_to_serv();
                 }
             });
         }
 
         void recv_from_serv(){
-            i_o = 1;
             socket_.async_receive_from(boost::asio::buffer(buff_), server_end_, [this](sys_e e, size_t buff_s){
                 if (e){
                     std::cerr << e.message() << std::endl;
-                    if (count_recv < count_max){
-                        count_recv++; 
-                        std::cout << "Trying to receive msg again, counter = " << count_recv << " / " << count_max << std::endl;
-                        recv_from_serv();
-                    }
-                    else {
-                        std::cerr << "Socket malfunction" << std::endl;
-                        return;
-                    }
                 }
                 else{
                     std::cout << "Receiving: " << std::string(buff_.data(), buff_s) << std::endl;
-                    watchdog_timer();
-                    send_to_serv();
-                }
-            });
-        }
-
-        void watchdog_timer(){
-            timer_.cancel();
-            timer_.expires_after(boost::asio::chrono::milliseconds(timer_exp_mil));
-            timer_.async_wait([this](const boost::system::error_code& e){
-                if (e){ 
-                    count = 0;
-                    return; 
-                } 
-                count++;
-                std::cout << "Timer expired" << count << " / " << count_max << std::endl;
-                if (i_o == 0){
-                    std::cout << "Receive problem, retry" << std::endl;
                     recv_from_serv();
-                }
-                else{
-                    std::cout << "Send problem, retry" << std::endl;
-                    send_to_serv();
                 }
             });
         }
@@ -89,21 +62,19 @@ class client{
         udp::endpoint server_end_;
         udp::endpoint client_end_;
         udp::socket socket_;
-        std::string msg_ = "from_cl_to_srv";
+        std::string msg_ = "";
         std::array<char, 1024> buff_;
-        boost::asio::steady_timer timer_;
-        int count_send = 0;
-        int count_recv = 0;
-        int count_max = 5;
-        int count = 0;
-        int i_o = 1;
-        int timer_exp_mil = 500;
+        std::shared_ptr<boost::asio::steady_timer> timer_;
+        int hz_;
+        int use_hz_;
 };
 
-int main(){
+
+int main(int argc, char* argv[]){
     io_c io_context;
-    int serv_port = 15000;
-    client cl(io_context,"127.0.0.1", serv_port);
+    std::shared_ptr<params> param_val = std::make_shared<params>();
+    parse_args(argc, argv, param_val, false);
+    client cl(io_context, param_val->use_hz, param_val->hz, param_val->serv_ip, param_val->serv_port, param_val->msg);
     cl.start();
     io_context.run();
     return 0;

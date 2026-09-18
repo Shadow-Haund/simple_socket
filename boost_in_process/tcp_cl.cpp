@@ -1,5 +1,8 @@
 #include <iostream>
 #include <boost/asio.hpp>
+#include <string>
+#include "../include/arg_parse.h"
+#include "../include/timer.h"
 
 using tcp = boost::asio::ip::tcp;
 using io_c = boost::asio::io_context;
@@ -7,11 +10,10 @@ using sys_e = boost::system::error_code;
 
 class client{
     public:
-        client(io_c &io, std::string serv_ip, int serv_port)
-        : io_context_(io), server_end_(boost::asio::ip::make_address(serv_ip), serv_port),
-        socket_(io) {}
+        client(io_c &io, int use_hz, int hz, std::string serv_ip, int serv_port, std::string msg)
+        : io_context_(io), timer_(std::make_shared<boost::asio::steady_timer>(io)), server_end_(boost::asio::ip::make_address(serv_ip), serv_port),
+        msg_(msg), hz_(hz), use_hz_(use_hz), socket_(io) {}
 
-        
         void start(){
             socket_.async_connect(server_end_, [this](sys_e e){
                 if (e){
@@ -19,21 +21,34 @@ class client{
                 }
                 else{
                     std::cout << "Connection established" << std::endl;
+                    recv_from_serv();
                     send_to_serv();
                 }
             }); 
         }
 
-    private:
+        void set_msg(std::string msg_new){
+            msg_ = msg_new;
+        }
+        
+        std::string get_msg(){
+            return msg_;
+        }
 
+    private:
         void send_to_serv(){
             socket_.async_send(boost::asio::buffer(msg_), [this](sys_e e, size_t buff_s){
                 if (e)
                     std::cerr << e.message() << std::endl;
-                else{
-                    std::cout << "Sending: " << msg_ << std::endl;
+                    
+                else if(use_hz_){
+                    std::cout << "Sending using timer: " << msg_ << std::endl;
+                    hz_timer(timer_, hz_, [this](){send_to_serv();});
                 }
-                recv_from_serv();
+                else{
+                    std::cout << "Sending with no timer: " << msg_ << std::endl;
+                    send_to_serv();
+                }
             });
         }
 
@@ -48,8 +63,8 @@ class client{
                 }
                 else{
                     std::cout << "Receiving: " << std::string(buff_.data(), buff_s) << std::endl;
+                    recv_from_serv();
                 }
-                send_to_serv();
             });
         }
 
@@ -57,14 +72,18 @@ class client{
         tcp::endpoint server_end_;
         tcp::endpoint client_end_;
         tcp::socket socket_;
-        std::string msg_ = "from_cl_to_srv";
         std::array<char, 1024> buff_;
+        std::string msg_ = "";
+        std::shared_ptr<boost::asio::steady_timer> timer_;
+        int hz_;
+        int use_hz_;
 };
 
-int main(){
+int main(int argc, char* argv[]){
     io_c io_context;
-    int serv_port = 15000;
-    client cl(io_context,"127.0.0.1", serv_port);
+    std::shared_ptr<params> param_val = std::make_shared<params>();
+    parse_args(argc, argv, param_val, false);
+    client cl(io_context, param_val->use_hz, param_val->hz, param_val->serv_ip, param_val->serv_port, param_val->msg);
     cl.start();
     io_context.run();
     return 0;

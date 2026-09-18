@@ -13,7 +13,16 @@ class session: public std::enable_shared_from_this<session>{
         :  socket_session_(std::move(socket_move)){}
 
     void session_receive(){
+        send_to_serv();
         recv_from_serv();
+    }
+
+    void set_msg(std::string msg_new){
+            msg_ = msg_new;
+        }
+        
+    std::string get_msg(){
+        return msg_;
     }
 
     private:
@@ -25,7 +34,7 @@ class session: public std::enable_shared_from_this<session>{
                 }
                 else{
                     std::cout << "Sending: " << self->msg_ << std::endl;
-                    self->recv_from_serv();
+                    self->send_to_serv();
                 }
             });
         }
@@ -43,7 +52,7 @@ class session: public std::enable_shared_from_this<session>{
                 }
                 else{
                     std::cout << "Receiving: " << std::string(self->buff_.data(), buff_s) << std::endl;
-                    self->send_to_serv();
+                    self->recv_from_serv();
                 }
             });
         }
@@ -80,9 +89,10 @@ class server{
 };
 
 
-int main(){
+int main(int argc, char* argv[]){
     io_c io_context;
     int serv_port = 15000;
+    if (argc == 2) serv_port = std::stoi(argv[1]);
     server serv(io_context, serv_port);
     serv.start();
     io_context.run();

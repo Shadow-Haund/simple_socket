@@ -11,51 +11,62 @@ class server{
         : io_context_(io), server_end_(udp::v4(), serv_port),
         socket_(io, server_end_) {}
 
-        void start(){recv_from_serv(); }
+        void start(){
+            send_to_cl();
+            recv_from_cl(); 
+        }
+
+        void set_msg(std::string msg_new){
+            msg_ = msg_new;
+        }
+        
+        std::string get_msg(){
+            return msg_;
+        }
 
     private:
 
-        void send_to_serv(){
+        void send_to_cl(){
             socket_.async_send_to(boost::asio::buffer(msg_), client_end_, [this](sys_e e, size_t buff_s){
                 if (e ){
                     std::cerr << e.message() << std::endl;
-                    if (count_send < count_max){
-                        count_send++; 
-                        std::cout << "Trying to send msg again, counter = " << count_send << " / " << count_max << std::endl;
-                        send_to_serv();
-                    }
-                    else {
-                        std::cerr << "Socket malfunction" << std::endl;
-                        return;
-                    }
+                    // if (count_send < count_max){
+                    //     count_send++; 
+                    //     std::cout << "Trying to send msg again, counter = " << count_send << " / " << count_max << std::endl;
+                    //     send_to_cl();
+                    // }
+                    // else {
+                    //     std::cerr << "Socket malfunction" << std::endl;
+                    //     return;
+                    // }
                 }
                 else{
                     std::cout << "Sending: " << msg_ << std::endl;
                     count_send = 0;
-                    recv_from_serv();
+                    recv_from_cl();
                 }
             });
         }
 
 
-        void recv_from_serv(){
+        void recv_from_cl(){
             socket_.async_receive_from(boost::asio::buffer(buff_), client_end_, [this](sys_e e, size_t buff_s){
                 if (e ){
                     std::cerr << e.message() << std::endl;
-                    if (count_recv < count_max){
-                        count_recv++; 
-                        std::cout << "Trying to send msg again, counter = " << count_recv << " / " << count_max << std::endl;
-                        recv_from_serv();
-                    }
-                    else {
-                        std::cerr << "Socket malfunction" << std::endl;
-                        return;
-                    }
+                    // if (count_recv < count_max){
+                    //     count_recv++; 
+                    //     std::cout << "Trying to send msg again, counter = " << count_recv << " / " << count_max << std::endl;
+                    //     recv_from_cl();
+                    // }
+                    // else {
+                    //     std::cerr << "Socket malfunction" << std::endl;
+                    //     return;
+                    // }
                 }
                 else{
                     std::cout << "Receiving: " << std::string(buff_.data(), buff_s) << std::endl;
                     count_recv = 0;
-                    send_to_serv();
+                    send_to_cl();
                 }
             });
         }
@@ -71,9 +82,10 @@ class server{
         int count_max = 5;
 };
 
-int main(){
+int main(int argc, char* argv[]){
     io_c io_context;
     int serv_port = 15000;
+    if (argc == 2) serv_port = std::stoi(argv[1]);
     server serv(io_context, serv_port);
     serv.start();
     io_context.run();
