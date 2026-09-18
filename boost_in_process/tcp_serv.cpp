@@ -19,14 +19,14 @@ class server{
                 }
                 else{
                     std::cout << "Connection established" << std::endl;
-                    recv_from_serv();
+                    recv_from_ip();
                 }
             });
         }
 
     private:
 
-        void send_to_serv(){
+        void send_to_ip(){
             socket_.async_send(boost::asio::buffer(msg_), [this](sys_e e, size_t buff_s){
                 if (e){
                     std::cerr << e.message() << std::endl;
@@ -34,13 +34,13 @@ class server{
                 }
                 else{
                     std::cout << "Sending: " << msg_ << std::endl;
-                    recv_from_serv();
+                    recv_from_ip();
                 }
             });
         }
 
 
-        void recv_from_serv(){
+        void recv_from_ip(){
             socket_.async_read_some(boost::asio::buffer(buff_), [this](sys_e e, size_t buff_s){
                 if (e){
                     std::cerr << e.message() << std::endl;
@@ -52,7 +52,7 @@ class server{
                 }
                 else{
                     std::cout << "Receiving: " << std::string(buff_.data(), buff_s) << std::endl;
-                    send_to_serv();
+                    send_to_ip();
                 }
             });
         }

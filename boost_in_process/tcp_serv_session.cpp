@@ -13,8 +13,8 @@ class session: public std::enable_shared_from_this<session>{
         :  socket_session_(std::move(socket_move)){}
 
     void session_receive(){
-        send_to_serv();
-        recv_from_serv();
+        send_to_cl();
+        recv_from_cl();
     }
 
     void set_msg(std::string msg_new){
@@ -26,7 +26,7 @@ class session: public std::enable_shared_from_this<session>{
     }
 
     private:
-        void send_to_serv(){
+        void send_to_cl(){
             socket_session_.async_send(boost::asio::buffer(msg_), [self = shared_from_this()](sys_e e, size_t buff_s){
                 if (e){
                     std::cerr << e.message() << std::endl;
@@ -34,13 +34,13 @@ class session: public std::enable_shared_from_this<session>{
                 }
                 else{
                     std::cout << "Sending: " << self->msg_ << std::endl;
-                    self->send_to_serv();
+                    self->send_to_cl();
                 }
             });
         }
 
 
-        void recv_from_serv(){
+        void recv_from_cl(){
             socket_session_.async_read_some(boost::asio::buffer(buff_), [self = shared_from_this()](sys_e e, size_t buff_s){
                 if (e){
                     std::cerr << e.message() << std::endl;
@@ -52,7 +52,7 @@ class session: public std::enable_shared_from_this<session>{
                 }
                 else{
                     std::cout << "Receiving: " << std::string(self->buff_.data(), buff_s) << std::endl;
-                    self->recv_from_serv();
+                    self->recv_from_cl();
                 }
             });
         }
